@@ -1,0 +1,16 @@
+services:
+  samba:
+    container_name: samba
+    image: samba
+    environment:
+      - SAMBA_USER=testuser #Cambiar por el usuario que desee
+      - SAMBA_PASS=testpass #Cambiar
+    ports:
+      - "135:135/tcp" 
+      - "137:137/udp" 
+      - "138:138/udp" 
+      - "139:139/tcp" 
+      - "445:445/tcp"
+    volumes:
+      - './cpublic:/cpublic'
+    restart: unless-stopped
