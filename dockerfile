@@ -28,5 +28,5 @@ EXPOSE 135/tcp 137/udp 138/udp 139/tcp 445/tcp
 # Define el comando de inicio para Supervisor
 CMD ["sh", "start.sh"]
 
-HEALTHCHECK --start-period=1m --interval=5s --retries=24 CMD nc -v -w 1 localhost 445
+HEALTHCHECK --start-period=1m --interval=30m --retries=24 CMD nc -v -w 1 localhost 445
 
