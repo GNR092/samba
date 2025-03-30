@@ -1,32 +1,54 @@
 # Utiliza la imagen base de Alpine Linux
-FROM alpine:latest
+FROM alpine:3.20
 
-# Etiqueta del mantenedor
+# Metadata
 LABEL maintainer="GNR092"
+LABEL description="Servidor Samba seguro en Docker"
 
-# Instala Samba, Supervisor y Bash, y configura los directorios
-RUN apk --no-cache add samba samba-common-tools supervisor bash $$ rm -rf /var/cache/apk/* && \
-    mkdir -p /config /cpublic && \
-    chmod -R 0777 /cpublic
+# Instalación de paquetes en una sola capa
+RUN \
+    # Instalar dependencias principales
+    apk add --no-cache \
+        samba \
+        samba-common-tools \
+        supervisor \
+        netcat-openbsd \
+        tzdata \
+        shadow \
+    # Limpieza y preparación
+    && rm -rf /var/cache/apk/* \
+    # Crear directorios necesarios
+    && mkdir -p /config /cpublic \
+    # Configurar permisos iniciales
+    && chown ${PUID}:${PGID} /cpublic \
+    && chmod 2770 /cpublic
 
-ARG SAMBA_USER
-ARG SAMBA_PASS
+# Copia de archivos de configuración
+COPY --chown=root:root --chmod=640 *.conf /config/
+COPY --chmod=750 start.sh  /
 
-# Copia los archivos de configuración al directorio /config
-COPY *.conf /config/
-WORKDIR /
-COPY start.sh .
-RUN chmod +x start.sh
+# Variables de entorno (agrupadas lógicamente)
+ENV \
+    # Configuración regional
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    TERM=xterm \
+    # Configuración Samba
+    SAMBA_USER="testuser" \
+    SAMBA_PASS="testpass" \
+    # Configuración sistema
+    TZ=Etc/UTC \
+    PUID=1000 \
+    PGID=1000
 
-
-# Define el volumen para el directorio compartido
+    # Volúmenes y puertos
 VOLUME /cpublic
-
-# Expone los puertos necesarios para Samba
 EXPOSE 135/tcp 137/udp 138/udp 139/tcp 445/tcp
 
-# Define el comando de inicio para Supervisor
-CMD ["sh", "start.sh"]
+# Verificación de salud
+HEALTHCHECK --start-period=30s --interval=1m --timeout=3s \
+    CMD nc -z localhost 445 || exit 1
 
-HEALTHCHECK --start-period=1m --interval=30m --retries=24 CMD nc -v -w 1 localhost 445
-
+# Punto de entrada
+CMD ["/start.sh"]
