@@ -1,3 +1,5 @@
 cpublic
 .git
 *.bak
+push.sh
+build.sh
