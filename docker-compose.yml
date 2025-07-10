@@ -1,16 +1,16 @@
 services:
   samba:
     container_name: samba
-    image: samba
+    image: gnr092/samba:${SMB_VERSION:-release}
     environment:
-      - SAMBA_USER=testuser #Cambiar por el usuario que desee
-      - SAMBA_PASS=testpass #Cambiar
+      - SAMBA_USER=${SMB_USER}
+      - SAMBA_PASS=${SMB_PASSWORD}
     ports:
-      - "135:135/tcp" 
-      - "137:137/udp" 
-      - "138:138/udp" 
-      - "139:139/tcp" 
-      - "445:445/tcp"
+      - "137-138:137-138/udp"  # NetBIOS (nmbd)
+      - "139:139/tcp"          # Samba (smbd)
+      - "445:445/tcp"          # Samba (smbd)
     volumes:
-      - './cpublic:/cpublic'
+      - ${SMB_DIRECTORY}:/cpublic
+    env_file:
+      - .env
     restart: unless-stopped
