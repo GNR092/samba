@@ -24,7 +24,7 @@ Nota: El chmod 2770 establece permisos de grupo y el bit setgid para que los nue
 ### 2. Crear el Archivo de Configuración .env 📄
 Para una configuración sencilla y segura, usa un archivo .env. Crea un archivo llamado .env en el mismo directorio donde tendrás tu docker-compose.yml o desde donde ejecutarás el comando docker run.
 
-[Archivo .env](./https://raw.githubusercontent.com/GNR092/samba/refs/heads/master/.env)
+[Archivo .env](https://raw.githubusercontent.com/GNR092/samba/refs/heads/master/sample.env)
 
 ### 🚀 Modos de Ejecución
 Puedes levantar tu servidor Samba usando Docker Compose (recomendado para gestionar servicios) o Docker CLI.
