@@ -1,54 +1,57 @@
 # Utiliza la imagen base de Alpine Linux
 FROM alpine:3.20
 
-# Metadata
+# Metadata sobre el contenedor
 LABEL maintainer="GNR092"
-LABEL description="Servidor Samba seguro en Docker"
+LABEL description="Servidor Samba seguro y configurable en Docker"
 
-# Instalación de paquetes en una sola capa
-RUN \
-    # Instalar dependencias principales
-    apk add --no-cache \
-        samba \
-        samba-common-tools \
-        supervisor \
-        netcat-openbsd \
-        tzdata \
-        shadow \
-    # Limpieza y preparación
-    && rm -rf /var/cache/apk/* \
-    # Crear directorios necesarios
-    && mkdir -p /config /cpublic \
-    # Configurar permisos iniciales
-    && chown ${PUID}:${PGID} /cpublic \
-    && chmod 2770 /cpublic
-
-# Copia de archivos de configuración
-COPY --chown=root:root --chmod=640 *.conf /config/
-COPY --chmod=750 start.sh  /
-
-# Variables de entorno (agrupadas lógicamente)
+# Variables de entorno por defecto (pueden ser sobrescritas por .env o docker-compose)
 ENV \
-    # Configuración regional
+    PUID=1000 \
+    PGID=1000 \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US.UTF-8 \
     LC_ALL=en_US.UTF-8 \
     TERM=xterm \
-    # Configuración Samba
+    TZ=Etc/UTC \
     SAMBA_USER="testuser" \
     SAMBA_PASS="testpass" \
-    # Configuración sistema
-    TZ=Etc/UTC \
-    PUID=1000 \
-    PGID=1000
+    SMB_WORKGROUP=WORKGROUP \
+    SMB_SERVER_STRING="Servidor Samba %v" \
+    SMB_NETBIOS_NAME=samba \
+    SMB_MIN_PROTOCOL=SMB2 \
+    SMB_MAX_PROTOCOL=SMB3 \
+    SMB_NAME_RESOLVE_ORDER="host bcast wins" \
+    SMB_ENCRYPT=if_required \
+    SMB2_MAX_CREDITS=8192
 
-    # Volúmenes y puertos
+RUN \
+    apk add --no-cache \
+        samba \
+        samba-common-tools \
+        supervisor \
+        tzdata \
+        shadow \
+        netcat-openbsd \
+        acl \
+        gettext \
+    && rm -rf /tmp/* /var/cache/apk/* \ 
+    && mkdir -p /config /cpublic \ 
+    && chown ${PUID}:${PGID} /cpublic \ 
+    && chmod 2770 /cpublic 
+
+
+COPY --chown=root:root --chmod=640 smb.conf /config/smb.conf
+COPY --chown=root:root --chmod=640 supervisord.conf /config/
+COPY --chmod=750 start.sh /start.sh
+
 VOLUME /cpublic
 EXPOSE 135/tcp 137/udp 138/udp 139/tcp 445/tcp
 
-# Verificación de salud
-HEALTHCHECK --start-period=30s --interval=1m --timeout=3s \
-    CMD nc -z localhost 445 || exit 1
+HEALTHCHECK --start-period=120s --interval=30s --timeout=5s --retries=3 \
+    CMD sh -c \
+    'nc -z 127.0.0.1 445 && \
+    smbclient -L //127.0.0.1 -U "${SAMBA_USER}"%"${SAMBA_PASS}" -m SMB2 -t 3 | grep -q "Compartido"'
 
-# Punto de entrada
+
 CMD ["/start.sh"]
