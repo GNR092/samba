@@ -3,65 +3,86 @@
 ![Docker Image Size](https://img.shields.io/docker/image-size/gnr092/samba)
 ![Docker Image Version](https://img.shields.io/docker/v/gnr092/samba)
 
+# Servidor Samba en Docker 🐳
 
-# Samba Docker
+Este proyecto te permite desplegar un servidor Samba robusto y configurable usando Docker, ideal para compartir archivos en tu red local.
 
-## Modos de ejecución para crear el contenedor Docker
+---
 
-### Primer paso
+## 🚀 Primeros Pasos
 
-**¡Importante!** antes de comenzar habilitar permisos de escritura/lectura en carpeta compartida: 
+### 1. Preparar la Carpeta Compartida
 
+Antes de crear el contenedor, habilita los permisos de lectura/escritura en la carpeta que deseas compartir. Por ejemplo, si usas `~/docker/samba/cpublic`:
+
+```bash
+mkdir -p "$HOME/docker/samba/cpublic" && \
+chmod 2770 "$HOME/docker/samba/cpublic"
 ```
-mkdir -p $HOME/docker/samba/cpublic && \
-chmod 770 -R $HOME/docker/samba/cpublic
-```
+Nota: El chmod 2770 establece permisos de grupo y el bit setgid para que los nuevos archivos dentro de la carpeta hereden el grupo.
 
-### docker-compose (*Opción recomendada*)
+### 2. Crear el Archivo de Configuración .env 📄
+Para una configuración sencilla y segura, usa un archivo .env. Crea un archivo llamado .env en el mismo directorio donde tendrás tu docker-compose.yml o desde donde ejecutarás el comando docker run.
 
+[Archivo .env](./https://raw.githubusercontent.com/GNR092/samba/refs/heads/master/.env)
 
-``` docker
+### 🚀 Modos de Ejecución
+Puedes levantar tu servidor Samba usando Docker Compose (recomendado para gestionar servicios) o Docker CLI.
+
+🐳 Opción 1: Docker Compose (Recomendado)
+Utiliza docker-compose para una gestión sencilla del servicio. Crea un archivo docker-compose.yml en el mismo directorio que tu archivo .env.
+
+```yaml
+# docker-compose.yml
 services:
   samba:
     container_name: samba
-    image: gnr092/samba:latest
+    image: gnr092/samba:${SMB_VERSION:-release}
     environment:
-        # Si no se asigna estas variables de entorno por defecto sera user y pass 123456
-      - SAMBA_USER=testuser #Cambiar por el usuario que desee
-      - SAMBA_PASS=testpass #Cambiar contraseña
-      - TZ=Etc/UTC #Cambiar al de su region
+      - SAMBA_USER=${SMB_USER}
+      - SAMBA_PASS=${SMB_PASSWORD}
     ports:
       - "137-138:137-138/udp"  # NetBIOS (nmbd)
       - "139:139/tcp"          # Samba (smbd)
       - "445:445/tcp"          # Samba (smbd)
     volumes:
-      - './cpublic:/cpublic'
+      - ${SMB_DIRECTORY}:/cpublic
+    env_file:
+      - .env
     restart: unless-stopped
 ```
+Para levantar el contenedor, ejecuta:
 
-### docker-cli
-
+```bash
+docker compose up -d
 ```
+
+💻 Opción 2: Docker CLI
+Si prefieres usar el comando docker run directamente, puedes cargar el archivo .env con la bandera --env-file.
+
+```bash
 docker run -d \
-        --name=Samba \
-        -e SAMBA_USER='testuser' \
-        -e SAMBA_PASS='testpass' \
-        -v $HOME/docker/samba/cpublic:/cpublic \
-        -p 137-138:137-138 \
-        -p 139:139 \
-        -p 445:445 \
-        --restart=always \
-        gnr092/samba
+  --name samba \
+  --env-file ./.env \
+  -v "$HOME/docker/samba/cpublic:/cpublic" \
+  -p 137:137/udp \
+  -p 138:138/udp \
+  -p 139:139/tcp \
+  -p 445:445/tcp \
+  --restart=unless-stopped \
+  gnr092/samba:latest
 ```
 
-## Parámetros
+### ⚙️ Parámetros de Configuración
+Las siguientes variables de entorno se pueden definir en tu archivo .env para personalizar el comportamiento del servidor Samba.
 
-Las imágenes de contenedor se configuran utilizando parámetros pasados en tiempo de ejecución (como los anteriores). 
-Estos parámetros están separados por dos puntos e indican ``<external>: <internal>`` respectivamente. 
-
-| Parámetro | Función |
-| ------ | ------ |
-| ``-v ~/docker/samba/cpublic:/cpublic`` | Definimos ruta donde alojamos los ficheros compartidos |
-| ``137-138:137-138`` | Puertos protocolo NetBios |
-| ``139:139`` | Puerto protocolo SMB |
-| ``445:445`` | Puerto protocolo SMB |
+|Variable de Entorno | Función | Valor por Defecto | Notas |
+|-|-|-|-|
+|TZ |Zona horaria del contenedor.|Etc/UTC|Importante para logs y sincronización horaria.|
+|SMB_WORKGROUP|Grupo de trabajo o dominio de Samba.|WORKGROUP|Debe coincidir con el grupo de tu red.|
+|SMB_NETBIOS_NAME|Nombre NetBIOS del servidor Samba.|samba|Nombre con el que el servidor será visible en la red.|
+|SMB_MIN_PROTOCOL|Protocolo SMB mínimo permitido (ej. SMB2, SMB3).|SMB2|Asegura compatibilidad con clientes modernos.|
+|SMB_MAX_PROTOCOL|Protocolo SMB máximo permitido (ej. SMB3).|SMB3|Permite el uso de las últimas características SMB.|
+|SMB_ENCRYPT|Requisito de cifrado para conexiones SMB (if_required, mandatory, no).|if_required|mandatory exige cifrado, if_required lo usa si el cliente lo soporta.|
+|SAMBA_USER|Nombre de usuario para autenticación en Samba.|testuser|¡IMPRESCINDIBLE CAMBIAR EN PRODUCCIÓN!|
+|SAMBA_PASS|Contraseña para el SAMBA_USER.|testpass|¡IMPRESCINDIBLE CAMBIAR EN PRODUCCIÓN!|
